@@ -25,7 +25,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func handleReceiving(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, peers peerManager, rep reputationManager, address string, r io.Reader, input chan<- interface{}) {
+func handleReceiving(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, rep reputationManager, peers peerManager, address string, r io.Reader, input chan<- interface{}) {
 	defer wg.Done()
 
 	// extract configuration as needed
@@ -35,26 +35,27 @@ func handleReceiving(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, peers 
 
 	// configure logger and add start/stop messages
 	log = log.With().Str("component", "receiver").Str("address", address).Logger()
-	log.Info().Msg("receiving routine started")
-	defer log.Info().Msg("receiving routine stopped")
+	log.Debug().Msg("receiving routine started")
+	defer log.Debug().Msg("receiving routine stopped")
 
-	// read all messages from connetion and forward on channel
+	// read all messages from connection and forward on input channel; break if connection closed, notify other errors
 	for {
 		msg, err := codec.Decode(r)
 		if errors.Cause(err) == io.EOF || isClosedErr(err) {
-			log.Info().Msg("network connection closed")
+			log.Debug().Msg("network connection closed")
 			break
 		}
 		if err != nil {
 			log.Error().Err(err).Msg("could not read message")
-			rep.Error(address)
-			err = peers.Drop(address)
-			if err != nil {
-				log.Error().Err(err).Msg("could not drop peer")
-			}
+			rep.Failure(address)
 			continue
 		}
 		input <- msg
 	}
+
+	// at this point, we should drop the peer, so that we don't risk sends on closed channels
+	peers.Drop(address)
+
+	// once we had a closed network connection, we get here; cascade the shutdown to the processor
 	close(input)
 }

@@ -17,10 +17,47 @@
 
 package types
 
+import (
+	"encoding/binary"
+
+	"golang.org/x/crypto/blake2s"
+)
+
 // Transaction represents an atomic standard transaction on the Alvalor network.
 type Transaction struct {
-	Transfers  []Transfer
-	Fees       []Fee
+	Transfers  []*Transfer
+	Fees       []*Fee
 	Data       []byte
+	Nonce      uint64
 	Signatures [][]byte
+	hash       Hash
+}
+
+// Hash returns the unique hash of the transaction.
+func (tx *Transaction) Hash() Hash {
+	if tx.hash == ZeroHash {
+		hash := tx.calc()
+		copy(tx.hash[:], hash)
+	}
+	return tx.hash
+}
+
+func (tx Transaction) calc() []byte {
+	buf := make([]byte, 8)
+	h, _ := blake2s.New256(nil)
+	for _, transfer := range tx.Transfers {
+		_, _ = h.Write(transfer.From)
+		_, _ = h.Write(transfer.To)
+		binary.LittleEndian.PutUint64(buf, transfer.Amount)
+		_, _ = h.Write(buf)
+	}
+	for _, fee := range tx.Fees {
+		_, _ = h.Write(fee.From)
+		binary.LittleEndian.PutUint64(buf, fee.Amount)
+		_, _ = h.Write(buf)
+	}
+	_, _ = h.Write(tx.Data)
+	binary.LittleEndian.PutUint64(buf, tx.Nonce)
+	_, _ = h.Write(buf)
+	return h.Sum(nil)
 }

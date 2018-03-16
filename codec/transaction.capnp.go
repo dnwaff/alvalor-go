@@ -14,12 +14,12 @@ type Transaction struct{ capnp.Struct }
 const Transaction_TypeID = 0xec9fd906d129035f
 
 func NewTransaction(s *capnp.Segment) (Transaction, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 4})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4})
 	return Transaction{st}, err
 }
 
 func NewRootTransaction(s *capnp.Segment) (Transaction, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 4})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4})
 	return Transaction{st}, err
 }
 
@@ -97,6 +97,14 @@ func (s Transaction) SetData(v []byte) error {
 	return s.Struct.SetData(2, v)
 }
 
+func (s Transaction) Nonce() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s Transaction) SetNonce(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
 func (s Transaction) Signatures() (capnp.DataList, error) {
 	p, err := s.Struct.Ptr(3)
 	return capnp.DataList{List: p.List()}, err
@@ -127,7 +135,7 @@ type Transaction_List struct{ capnp.List }
 
 // NewTransaction creates a new list of Transaction.
 func NewTransaction_List(s *capnp.Segment, sz int32) (Transaction_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 4}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4}, sz)
 	return Transaction_List{l}, err
 }
 
@@ -148,22 +156,24 @@ func (p Transaction_Promise) Struct() (Transaction, error) {
 	return Transaction{s}, err
 }
 
-const schema_b5f3d18a6c743283 = "x\xdaL\xcd\xb1K\xfbP\x14\xc5\xf1s\xdeM\xf2\x9b" +
-	"\xda_\x9e\xcd\x1a\x9c\x1c\x14\x14\x15\x1c\xec\xe4\xa8\xe0\xd0" +
-	"'N.\xfa\x88\xa9\x04$-\xc9s(\xb8\xb9\xa8 " +
-	"Vpw\x0e\xb8::;9t\xf4/\x10\xc1Iw" +
-	"#QD\xb7\xcb\xe7\xcb\xe5,\xcepM-\xf9\x97\x01" +
-	"`6\xfd\xa0\xde\x95\xd9I\xf0t\xf3\x0a=\xc5\xfad" +
-	"\xd9\x1d\x9eO\xde\xef\xe0{\xff\x80\xce\xbc\xbcuV\xa5" +
-	"\xb9V\xe4\x19\x0f\xb5+l^\xda\xc4\xa9l\x90/$" +
-	"v\x98\x0f\xbb\xdb_4\x9d\xb8l\x90\xf7H\x13\x8a\x07" +
-	"x\x04\xb4\xdd\x02\xcc\x9e\xd0\x1c+j2b\x83\xa39" +
-	"\xc08\xa1\x19+j\xa5\"*@_4x*4\xd7" +
-	"\x8aZ$\xa2\x00\xfaj\x070c\xa1\xb9U\xfc\x1e\xee" +
-	"\xa7\x05X\xb2\x0d\xf6\x84\x0c\xeb*>[\xefn\xdc\x7f" +
-	"\x00l\xf0\x7f?M\xff\xd4Q\xf8\x12Wq\xf5\xf8S" +
-	"\xf7\xad\xb3lA\xb1\x05\xd6ev\x90[wT@~" +
-	"_\x9a\xd6\x06?\x03\x00\x00\xff\xff\x9a\x95A\x08"
+const schema_b5f3d18a6c743283 = "x\xdaL\xce\xb1J\x03A\x10\xc6\xf1\xef\xdb\xddDR" +
+	"$f\xcd\xb5\xe1j-Dc\x97\xcaR+3be" +
+	"#\xc7y\x91@\xd8\x84\xe4,\x04\xad\xac\x14\x05\x9b\x80" +
+	"V6\x16\x1e(D\xd0\xd27\xd0\"\xa5\x8f Xi" +
+	"\xef\xca)\xa2\xdd\xf0\xfb\x0f\xc3,\x9cpY-\x16\xd6" +
+	"J\x80t\x0bE\xbf\xa5g'\xc5\x97\xcb7\xc8\x0c\xe9" +
+	"\x0f\x1bi\xf7x\xf2\xf1\x80\x82\x99\x02j\xa7\xe6\xbdv" +
+	"\x91OK#\x13\x12\x1e\xa1O\x07\x91\x1bFq\xaa:" +
+	"=7\x1fG}\xd7on|S\x18\xa7\x9d\x9ek\x91" +
+	"\x12h\x03\x18\x02\xf6`\x1d\x90}M9W\xb4d\xc0" +
+	"\x1cGs\x80\x9ci\xca\x8d\xa2U*\xa0\x02l\x96\xe3" +
+	"\x95\xa6\x8c\x15\xa9\x03j\xc0\xde6\x00\xb9\xd6\x94{E" +
+	"kt@\x03\xd8\xbbM@\xc6\x9a\xf2\xa4\xf8\xf3L;" +
+	"\x19\x80CV\xc0\x96&\xab>\xab\x1f\xad4W\x1f?" +
+	"\x01\xe68\xddN\x92\x7fu\xaf\xfaZ\xcf\xea\xd9\xf3o" +
+	"\xdd\x8e\xd2\x88e(\x96\xc1\xd0\xf5\\\x9c\xb0\x04\xc5\x12" +
+	"\xe8\x87\x9d\x1d\x17\xa5\xbb\x03\xe8\xbf\x03\xf9f\x05\xfc\x0a" +
+	"\x00\x00\xff\xff\x9f9I\""
 
 func init() {
 	schemas.Register(schema_b5f3d18a6c743283,

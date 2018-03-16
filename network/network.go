@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	uuid "github.com/satori/go.uuid"
@@ -37,13 +38,13 @@ var (
 	Loki = []byte{76, 79, 75, 73}
 )
 
-// Network represents a wrapper around the network package to provide the API.
+// Network defines the exposed API of the Alvalor network package.
 type Network interface {
 	Add(address string)
-	Broadcast(i interface{}, exclude ...string)
-	Send(address string, i interface{}) error
-	Subscribe() <-chan interface{}
+	Send(address string, msg interface{}) error
+	Broadcast(msg interface{}, exclude ...string) error
 	Stop()
+	Stats()
 }
 
 // simpleNetwork represents a simple network wrapper.
@@ -53,16 +54,17 @@ type simpleNetwork struct {
 	cfg        *Config
 	dialer     dialWrapper
 	listener   listenWrapper
-	addresses  addressManager
+	book       addressManager
 	pending    pendingManager
 	peers      peerManager
 	rep        reputationManager
-	subscriber chan interface{}
+	subscriber chan<- interface{}
+	events     eventManager
 	stop       chan struct{}
 }
 
 // New will initialize the network component.
-func New(log zerolog.Logger, codec Codec, options ...func(*Config)) Network {
+func New(log zerolog.Logger, codec Codec, subscriber chan<- interface{}, options ...func(*Config)) Network {
 
 	// initialize the launcher for all handlers
 	net := &simpleNetwork{}
@@ -83,8 +85,8 @@ func New(log zerolog.Logger, codec Codec, options ...func(*Config)) Network {
 		minPeers:   3,
 		maxPeers:   10,
 		maxPending: 16,
-		nonce:      uuid.NewV4().Bytes(),
-		interval:   time.Second * 1,
+		nonce:      uuid.Must(uuid.NewV4()).Bytes(),
+		interval:   time.Second,
 		codec:      codec,
 		bufferSize: 16,
 	}
@@ -94,9 +96,8 @@ func New(log zerolog.Logger, codec Codec, options ...func(*Config)) Network {
 	net.cfg = cfg
 
 	// initialize the address manager that handles outgoing addresses
-	addresses := newSimpleAddressManager()
-	addresses.Block(cfg.address)
-	net.addresses = addresses
+	book := newSimpleAddressManager()
+	net.book = book
 
 	// initialize the slots manager that handles connection slots
 	pending := newSimplePendingManager(cfg.maxPending)
@@ -111,12 +112,22 @@ func New(log zerolog.Logger, codec Codec, options ...func(*Config)) Network {
 	net.rep = rep
 
 	// create the subscriber channel
-	subscriber := make(chan interface{}, int(cfg.maxPeers*cfg.bufferSize))
 	net.subscriber = subscriber
 
 	// create the channel that will shut everything down
 	stop := make(chan struct{})
 	net.stop = stop
+
+	// initialize the listen function wrapper
+	listener := &simpleListenWrapper{}
+	net.listener = listener
+
+	// initialize the dial function wrapper
+	dialer := &simpleDialWrapper{}
+	net.dialer = dialer
+
+	events := &simpleEventManager{subscriber: subscriber}
+	net.events = events
 
 	// initialize the initial handlers
 	net.Dropper()
@@ -127,47 +138,57 @@ func New(log zerolog.Logger, codec Codec, options ...func(*Config)) Network {
 }
 
 func (net *simpleNetwork) Dropper() {
+	net.wg.Add(1)
 	go handleDropping(net.log, net.wg, net.cfg, net.peers, net.stop)
 }
 
 func (net *simpleNetwork) Server() {
+	net.wg.Add(1)
 	go handleServing(net.log, net.wg, net.cfg, net.peers, net, net.stop)
 }
 
 func (net *simpleNetwork) Dialer() {
-	go handleDialing(net.log, net.wg, net.cfg, net.peers, net.pending, net.addresses, net.rep, net, net.stop)
+	net.wg.Add(1)
+	go handleDialing(net.log, net.wg, net.cfg, net.peers, net.pending, net.book, net.rep, net, net.stop)
 }
 
 func (net *simpleNetwork) Listener() {
+	net.wg.Add(1)
 	go handleListening(net.log, net.wg, net.cfg, net, net.listener, net.stop)
 }
 
 func (net *simpleNetwork) Discoverer() {
+	net.wg.Add(1)
 	go handleDiscovering(net.log, net.wg, net.cfg, net.peers)
 }
 
 func (net *simpleNetwork) Acceptor(conn net.Conn) {
-	go handleAccepting(net.log, net.wg, net.cfg, net.pending, net.peers, net.rep, conn)
+	net.wg.Add(1)
+	go handleAccepting(net.log, net.wg, net.cfg, net.pending, net.peers, net.rep, net.book, net.events, conn)
 }
 
 func (net *simpleNetwork) Connector(address string) {
-	go handleConnecting(net.log, net.wg, net.cfg, net.pending, net.peers, net.rep, net.dialer, address)
+	net.wg.Add(1)
+	go handleConnecting(net.log, net.wg, net.cfg, net.pending, net.peers, net.rep, net.book, net.dialer, net.events, address)
 }
 
 func (net *simpleNetwork) Sender(address string, output <-chan interface{}, w io.Writer) {
-	go handleSending(net.log, net.wg, net.cfg, net.peers, net.rep, address, output, w)
+	net.wg.Add(1)
+	go handleSending(net.log, net.wg, net.cfg, net.rep, net.events, address, output, w)
 }
 
 func (net *simpleNetwork) Processor(address string, input <-chan interface{}, output chan<- interface{}) {
-	go handleProcessing(net.log, net.wg, net.cfg, net.addresses, net.peers, net.subscriber, address, input, output)
+	net.wg.Add(1)
+	go handleProcessing(net.log, net.wg, net.cfg, net.book, net.events, address, input, output)
 }
 
 func (net *simpleNetwork) Receiver(address string, r io.Reader, input chan<- interface{}) {
-	go handleReceiving(net.log, net.wg, net.cfg, net.peers, net.rep, address, r, input)
+	net.wg.Add(1)
+	go handleReceiving(net.log, net.wg, net.cfg, net.rep, net.peers, address, r, input)
 }
 
 func (net *simpleNetwork) Add(address string) {
-	net.addresses.Add(address)
+	net.book.Add(address)
 }
 
 func (net *simpleNetwork) Stop() {
@@ -177,40 +198,41 @@ func (net *simpleNetwork) Stop() {
 		net.peers.Drop(address)
 	}
 	net.wg.Wait()
-}
-
-// Subscribe returns a channel that will stream all received messages and events.
-func (net *simpleNetwork) Subscribe() <-chan interface{} {
-	return net.subscriber
+	close(net.subscriber)
 }
 
 // Broadcast broadcasts a message to all peers.
-func (net *simpleNetwork) Broadcast(i interface{}, exclude ...string) {
+func (net *simpleNetwork) Broadcast(msg interface{}, exclude ...string) error {
 	addresses := net.peers.Addresses()
 	lookup := make(map[string]struct{})
 	for _, address := range exclude {
 		lookup[address] = struct{}{}
 	}
+	var err *multierror.Error
 	for _, address := range addresses {
 		_, ok := lookup[address]
 		if ok {
 			continue
 		}
-		output, err := net.peers.Output(address)
-		if err != nil {
-			net.log.Error().Err(err).Str("address", address).Msg("could not broadcast to peer")
-			continue
+		inErr := net.peers.Send(address, msg)
+		if inErr != nil {
+			err = multierror.Append(err, inErr)
 		}
-		output <- i
 	}
+	if err != nil {
+		return errors.Wrap(err, "could not broadcast to all peers")
+	}
+	return nil
 }
 
 // Send sends a message to the peer with the given address.
-func (net *simpleNetwork) Send(address string, i interface{}) error {
-	output, err := net.peers.Output(address)
-	if err != nil {
-		return errors.Wrap(err, "could not send to peer")
-	}
-	output <- i
-	return nil
+func (net *simpleNetwork) Send(address string, msg interface{}) error {
+	return net.peers.Send(address, msg)
+}
+
+// Stats will log information of the network layer.
+func (net *simpleNetwork) Stats() {
+	numPeers := net.peers.Count()
+	numPending := net.pending.Count()
+	net.log.Info().Uint("num_peers", numPeers).Uint("num_pending", numPending).Msg("stats")
 }

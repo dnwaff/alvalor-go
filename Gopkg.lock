@@ -14,6 +14,12 @@
   revision = "18fdff33d8fa6779a6eb859c3fbe0d330b340da2"
 
 [[projects]]
+  name = "github.com/awishformore/zerolog"
+  packages = ["."]
+  revision = "56a970de510213e50dbaa39ad73ac07c9ec75606"
+  version = "v1.5.0"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -29,13 +35,31 @@
   branch = "master"
   name = "github.com/dgryski/go-farm"
   packages = ["."]
-  revision = "ac7624ea8da311f2fbbd94401d8c1cf66089f9fb"
+  revision = "2de33835d10275975374b37b2dcfd22c9020a1f5"
+
+[[projects]]
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
-  name = "github.com/golang/protobuf"
-  packages = ["proto"]
-  revision = "1e59b77b52bf8e4b449a57e6f79f21226d571845"
+  name = "github.com/hashicorp/errwrap"
+  packages = ["."]
+  revision = "7554cd9344cec97297fa6649b055a8c98c2a1e55"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/hashicorp/go-multierror"
+  packages = ["."]
+  revision = "b7773ae218740a7be65057fc60b366a49b538a44"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/jrick/bitset"
+  packages = ["."]
+  revision = "06eae37cdf93c699c0503c23f998167ce841974c"
 
 [[projects]]
   name = "github.com/pierrec/lz4"
@@ -62,16 +86,28 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/rs/zerolog"
   packages = [".","internal/json"]
-  revision = "3ac71fc58dbd43122668a912b755b0979ba9ce1f"
-  version = "v1.3.0"
+  revision = "1c575db92819e737bf5f8751e6cc90d2ccd273e1"
 
 [[projects]]
+  branch = "master"
   name = "github.com/satori/go.uuid"
   packages = ["."]
-  revision = "879c5887cd475cd7864858769793b2ceb0d44feb"
-  version = "v1.1.0"
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
+
+[[projects]]
+  name = "github.com/spaolacci/murmur3"
+  packages = ["."]
+  revision = "9f5d223c60793748f04a9d5b4b4eacddfc1f755d"
+  version = "v1.1"
+
+[[projects]]
+  name = "github.com/spf13/pflag"
+  packages = ["."]
+  revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/stretchr/objx"
@@ -82,8 +118,8 @@
 [[projects]]
   name = "github.com/stretchr/testify"
   packages = ["assert","mock","require","suite"]
-  revision = "b91bfb9ebec76498946beb6af7c0230c7cc7ba6c"
-  version = "v1.2.0"
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
 
 [[projects]]
   branch = "master"
@@ -98,22 +134,34 @@
   revision = "8e7a99b3e716f36d3b080a9a70f9eb45abe4edcc"
 
 [[projects]]
+  name = "github.com/willf/bitset"
+  packages = ["."]
+  revision = "d860f346b89450988a379d7d705e83c58d1ea227"
+  version = "v1.1.3"
+
+[[projects]]
+  name = "github.com/willf/bloom"
+  packages = ["."]
+  revision = "54e3b963ee1652b06c4562cb9b6020ebc6e36e59"
+  version = "v2.0.3"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["blake2b","pbkdf2"]
-  revision = "d585fd2cc9195196078f516b69daff6744ef5e84"
+  packages = ["blake2s","ed25519","ed25519/internal/edwards25519","pbkdf2","sha3"]
+  revision = "21652f85b0fdddb6c2b6b77a5beca5c5a908174a"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","internal/timeseries","trace"]
-  revision = "d866cfc389cec985d6fda2859936a575a55a3ab6"
+  revision = "e0c57d8f86c17f0724497efcb3bc617e82834821"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "d818ba11af4465e00c1998bd3f8a55603b422290"
+  revision = "cc7307a45468e49eaf2997c890f14aa03a26917b"
 
 [[projects]]
   name = "zombiezen.com/go/capnproto2"
@@ -124,6 +172,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0937aa257df00d126f0621a121a4261d66dd59ad43e96f03c50d94cf1048134a"
+  inputs-digest = "6c028e783efcac1b1aa157abb0a52e5b741b95fb4f77c7994a61b96487042790"
   solver-name = "gps-cdcl"
   solver-version = 1

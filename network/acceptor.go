@@ -25,18 +25,22 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func handleAccepting(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, pending pendingManager, peers peerManager, rep reputationManager, conn net.Conn) {
+func handleAccepting(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, pending pendingManager, peers peerManager, rep reputationManager, book addressManager, events eventManager, conn net.Conn) {
 
 	// synchronization, configuration & logging
 	defer wg.Done()
+
+	// configuration
 	var (
 		network = cfg.network
 		nonce   = cfg.nonce
 		address = conn.RemoteAddr().String()
 	)
+
+	// configure logger
 	log = log.With().Str("component", "acceptor").Str("address", address).Logger()
-	log.Info().Msg("accepting routine started")
-	defer log.Info().Msg("accepting routine stopped")
+	log.Debug().Msg("accepting routine started")
+	defer log.Debug().Msg("accepting routine stopped")
 
 	// first make sure we can claim a connection slot
 	err := pending.Claim(address)
@@ -54,28 +58,28 @@ func handleAccepting(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, pendin
 	if err != nil {
 		log.Error().Err(err).Msg("could not read syn packet")
 		conn.Close()
-		rep.Error(address)
+		rep.Failure(address)
 		return
 	}
 	networkIn := syn[:len(network)]
 	if !bytes.Equal(networkIn, network) {
 		log.Error().Bytes("network", network).Bytes("network_in", networkIn).Msg("network mismatch")
 		conn.Close()
-		rep.Invalid(address)
+		book.Block(address)
 		return
 	}
 	nonceIn := syn[len(network):]
 	if bytes.Equal(nonceIn, nonce) {
-		log.Error().Bytes("nonce", nonce).Msg("identical nonce")
+		log.Error().Hex("nonce", nonce).Msg("identical nonce")
 		conn.Close()
-		rep.Invalid(address)
+		book.Block(address)
 		return
 	}
 	_, err = conn.Write(ack)
 	if err != nil {
 		log.Error().Err(err).Msg("could not write ack packet")
 		conn.Close()
-		rep.Error(address)
+		rep.Failure(address)
 		return
 	}
 
@@ -87,5 +91,12 @@ func handleAccepting(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, pendin
 		return
 	}
 
+	log.Info().Msg("incoming connection established")
+
 	rep.Success(address)
+
+	err = events.Connected(address)
+	if err != nil {
+		log.Error().Err(err).Msg("could not submit connected event")
+	}
 }

@@ -17,13 +17,15 @@ const (
 	Z_Which_pong        Z_Which = 1
 	Z_Which_discover    Z_Which = 2
 	Z_Which_peers       Z_Which = 3
-	Z_Which_text        Z_Which = 4
-	Z_Which_data        Z_Which = 5
-	Z_Which_transaction Z_Which = 6
+	Z_Which_transaction Z_Which = 4
+	Z_Which_mempool     Z_Which = 5
+	Z_Which_inventory   Z_Which = 6
+	Z_Which_request     Z_Which = 7
+	Z_Which_batch       Z_Which = 8
 )
 
 func (w Z_Which) String() string {
-	const s = "pingpongdiscoverpeerstextdatatransaction"
+	const s = "pingpongdiscoverpeerstransactionmempoolinventoryrequestbatch"
 	switch w {
 	case Z_Which_ping:
 		return s[0:4]
@@ -33,12 +35,16 @@ func (w Z_Which) String() string {
 		return s[8:16]
 	case Z_Which_peers:
 		return s[16:21]
-	case Z_Which_text:
-		return s[21:25]
-	case Z_Which_data:
-		return s[25:29]
 	case Z_Which_transaction:
-		return s[29:40]
+		return s[21:32]
+	case Z_Which_mempool:
+		return s[32:39]
+	case Z_Which_inventory:
+		return s[39:48]
+	case Z_Which_request:
+		return s[48:55]
+	case Z_Which_batch:
+		return s[55:60]
 
 	}
 	return "Z_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -202,55 +208,8 @@ func (s Z) NewPeers() (Peers, error) {
 	return ss, err
 }
 
-func (s Z) Text() (string, error) {
-	if s.Struct.Uint16(0) != 4 {
-		panic("Which() != text")
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.Text(), err
-}
-
-func (s Z) HasText() bool {
-	if s.Struct.Uint16(0) != 4 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s Z) TextBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
-	return p.TextBytes(), err
-}
-
-func (s Z) SetText(v string) error {
-	s.Struct.SetUint16(0, 4)
-	return s.Struct.SetText(0, v)
-}
-
-func (s Z) Data() ([]byte, error) {
-	if s.Struct.Uint16(0) != 5 {
-		panic("Which() != data")
-	}
-	p, err := s.Struct.Ptr(0)
-	return []byte(p.Data()), err
-}
-
-func (s Z) HasData() bool {
-	if s.Struct.Uint16(0) != 5 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s Z) SetData(v []byte) error {
-	s.Struct.SetUint16(0, 5)
-	return s.Struct.SetData(0, v)
-}
-
 func (s Z) Transaction() (Transaction, error) {
-	if s.Struct.Uint16(0) != 6 {
+	if s.Struct.Uint16(0) != 4 {
 		panic("Which() != transaction")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -258,7 +217,7 @@ func (s Z) Transaction() (Transaction, error) {
 }
 
 func (s Z) HasTransaction() bool {
-	if s.Struct.Uint16(0) != 6 {
+	if s.Struct.Uint16(0) != 4 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -266,17 +225,149 @@ func (s Z) HasTransaction() bool {
 }
 
 func (s Z) SetTransaction(v Transaction) error {
-	s.Struct.SetUint16(0, 6)
+	s.Struct.SetUint16(0, 4)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewTransaction sets the transaction field to a newly
 // allocated Transaction struct, preferring placement in s's segment.
 func (s Z) NewTransaction() (Transaction, error) {
-	s.Struct.SetUint16(0, 6)
+	s.Struct.SetUint16(0, 4)
 	ss, err := NewTransaction(s.Struct.Segment())
 	if err != nil {
 		return Transaction{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s Z) Mempool() (Mempool, error) {
+	if s.Struct.Uint16(0) != 5 {
+		panic("Which() != mempool")
+	}
+	p, err := s.Struct.Ptr(0)
+	return Mempool{Struct: p.Struct()}, err
+}
+
+func (s Z) HasMempool() bool {
+	if s.Struct.Uint16(0) != 5 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Z) SetMempool(v Mempool) error {
+	s.Struct.SetUint16(0, 5)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewMempool sets the mempool field to a newly
+// allocated Mempool struct, preferring placement in s's segment.
+func (s Z) NewMempool() (Mempool, error) {
+	s.Struct.SetUint16(0, 5)
+	ss, err := NewMempool(s.Struct.Segment())
+	if err != nil {
+		return Mempool{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s Z) Inventory() (Inventory, error) {
+	if s.Struct.Uint16(0) != 6 {
+		panic("Which() != inventory")
+	}
+	p, err := s.Struct.Ptr(0)
+	return Inventory{Struct: p.Struct()}, err
+}
+
+func (s Z) HasInventory() bool {
+	if s.Struct.Uint16(0) != 6 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Z) SetInventory(v Inventory) error {
+	s.Struct.SetUint16(0, 6)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewInventory sets the inventory field to a newly
+// allocated Inventory struct, preferring placement in s's segment.
+func (s Z) NewInventory() (Inventory, error) {
+	s.Struct.SetUint16(0, 6)
+	ss, err := NewInventory(s.Struct.Segment())
+	if err != nil {
+		return Inventory{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s Z) Request() (Request, error) {
+	if s.Struct.Uint16(0) != 7 {
+		panic("Which() != request")
+	}
+	p, err := s.Struct.Ptr(0)
+	return Request{Struct: p.Struct()}, err
+}
+
+func (s Z) HasRequest() bool {
+	if s.Struct.Uint16(0) != 7 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Z) SetRequest(v Request) error {
+	s.Struct.SetUint16(0, 7)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewRequest sets the request field to a newly
+// allocated Request struct, preferring placement in s's segment.
+func (s Z) NewRequest() (Request, error) {
+	s.Struct.SetUint16(0, 7)
+	ss, err := NewRequest(s.Struct.Segment())
+	if err != nil {
+		return Request{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s Z) Batch() (Batch, error) {
+	if s.Struct.Uint16(0) != 8 {
+		panic("Which() != batch")
+	}
+	p, err := s.Struct.Ptr(0)
+	return Batch{Struct: p.Struct()}, err
+}
+
+func (s Z) HasBatch() bool {
+	if s.Struct.Uint16(0) != 8 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Z) SetBatch(v Batch) error {
+	s.Struct.SetUint16(0, 8)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBatch sets the batch field to a newly
+// allocated Batch struct, preferring placement in s's segment.
+func (s Z) NewBatch() (Batch, error) {
+	s.Struct.SetUint16(0, 8)
+	ss, err := NewBatch(s.Struct.Segment())
+	if err != nil {
+		return Batch{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -328,28 +419,50 @@ func (p Z_Promise) Transaction() Transaction_Promise {
 	return Transaction_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_904d4f3f728c7f04 = "x\xda4\xcc\xbb\x8b\x13Q\x1c\xc5\xf1s\xee\x9d\x87E" +
-	".\x99a\xa7\x12uKQ\x88\xb8\xbbha\xe3\x16\x0a" +
-	"\"\xcaz\xb7\xd4B\xc6\xec )\x9c\x0c\x93A\x82\x8d" +
-	"}\x10\xe2\x7f\xa0\x85X[$\x82\x92@\x8a\x04#(" +
-	"$\x90F\x11\xbb\x80E:+\xe3\xe3'#\xb1\xfd\x1c" +
-	"\xce\xf7\xfc\x15\xee\xab\x1d\xb7\xeb\x01\xf6\x86\xeb\xc9\xdbS" +
-	"\x8b\xbd\xd3\x17\x1e\xf4`\x8f\x91\xe2<~\x92_>\xb8" +
-	"\xf9\x14W\xe9\xfb\xc0VM\x1fn\xedh\x1f\xd8\xab\xe9" +
-	".\xf1N\x1e\x9d\xab\xc7Y\x9a]\x02o\xdf\"\xed\x09" +
-	"\xedTD\x1c\x02a\xff,`_i\xda\x81\xa2\xe1\x1f" +
-	"\x89X\xea\x9bR{\x9av\xa4h\xd4o\x89\xa8\x80p" +
-	"x\x1d\xb0\x03M;U4\xfa\x97D\xd4@8\xd9\x05" +
-	"\xecH\xd3~P4\xceO\x89\xe8\x00\xe1\xfb\xb20\xd6" +
-	"\xb43E\xe3\xae%\xa2\x0b\x84\x1fK\x9dj\xda\x85\xa2" +
-	"\xf1~HD\x0f\x08\xe7\xf7\x00;\xd3\xb4_\x14\xabY" +
-	"#\xbd\xcf@\x96\xdb\x9f\xbf\x7f\xbd6~\x01\x90\x01X" +
-	"\xcd\x9a\xffXj\xcf\x0fd\xb7\xbf\xdc\xb0\x1c5Z\xf5" +
-	"\xe6\xc3$\x07\xc0@\xda\xaf_^\xfc\xb6\xbf\xeal\xd6" +
-	"\xed,I\xf2\x16\x039~xgrr\xdd\x19\xfe\x8f" +
-	"\x15I\xbb`\x05\x8a\x15\xb0z\x14\x171\x0d\x14\x0d(" +
-	"E\x1e\xa7\xad\xb8^\xc0o4S\x06rW\x9f\x99{" +
-	"\x9f\x9e\xad6\xcf\xbf\x01\x00\x00\xff\xff\x9b\xabhA"
+func (p Z_Promise) Mempool() Mempool_Promise {
+	return Mempool_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p Z_Promise) Inventory() Inventory_Promise {
+	return Inventory_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p Z_Promise) Request() Request_Promise {
+	return Request_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p Z_Promise) Batch() Batch_Promise {
+	return Batch_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+const schema_904d4f3f728c7f04 = "x\xda4\xce?h\x13\x7f\x1c\xc6\xf1\xe7\xb9\xfb\xe6\x1f" +
+	"\xbf\xe4\xd7o\xb8+\xa8\xa8q\x10D\xc1\x7f)\x8a\xe8" +
+	"\xd0\"\x08E\xd0x\x89.f\x904\x1e\x1ah\xee\xce" +
+	"\xcbY\xd4\xa5\x9b\x7f\x8a\x05\xc5\xd1A\x07\x11\x84:\x08" +
+	"\xea\xa0\xb8\xe9\xe0(\xba\xe8\xa0S!C\x14\xc5\x8a\xb1" +
+	"Z?\xf2-\xc9\xfa~\xf1\xc0\xb3\xeb9'\xac\xdd\xa9" +
+	"J\x0e\xf0\xa6Siy\xb6\xf1\xdd\xd8\x96=\xed\xc7\xf0" +
+	"\xb2\xa4\xa8\xd9\xeb\xf1x\xe5\xc8\x0d\x1cb&\x078\xf3" +
+	"\xaa\xea\xdcT\x19`l^\x09!(\xc9\xa5\x1d\xcdF" +
+	"\x14D\xfb\xc1\x93\xc7Ho\xb3\xad\xf2\"\x8a@\xf1\xf3" +
+	"6\xc0\xeb\xda\xf4\x96,\x16\xf8W\\\x9a\xfa\xcd\xd4\x9e" +
+	"M\xafo\xb1`\xad\x88K\x0b(\xfe8\x0cxK6" +
+	"\xab\xb4X\xb0\xff\x88K\x1b(\xae\x94\x01\xafo\xb3\xa6" +
+	"LV\xbf\xc5\xa5\x02\x1cr\x0a\xa8\xd2f-ozj" +
+	"Y\\\xa6\x00'\xc7\x83@M\x19\xd0\x06\xd2\xbf\xc4e" +
+	"\x1ap\x0a\xac\x02\xb5\xbc\x815\x062}q\x99\x01\x9c" +
+	"\xd1\xd5\x856\xb0\xde@\xf6\xa7\xb8\xcc\x02\xceZ\x96\x81" +
+	"\x9ak`\x13-\x8eD\xad\xe0\x0c\xb5,\x96>|\xff" +
+	"8\xf9\xf2\x1e@jp$\x0aW\xb3l\xbf[\x91\xf2" +
+	"\x93\xc5A\x96\xd3\xadN3\x9c\xf1c\x00\xd4r\xe1\xe9" +
+	"\xfd\xbd\xdd\x89\xde\xdc@K\x91\xef\xc7\x1djYW\xad" +
+	"\xbf\xda\xb0<\xf7b\xb8J\xe2F\xd0i4\x13dZ" +
+	"a@-\xa7\xec\xado\xd2\xef\xef\xf4\x06>\xdb\xf6\xdb" +
+	"Q\x18NS\xcb\xe8\xc2\xce\x13\x0f\xff\xdf\xf7u\xb8l" +
+	"\x053~\x90\x841x\x91Z\xae~\xfa\xef\xf6\xa3\xe3" +
+	"\x93\xd7\x86\xbb\xd8?w\xde\xef$\xd4r\xeb\xc0\xeb\xf1" +
+	"+\xc5\xb7\xdd\xe1\x93\xa9F\xd2<K-_\x16\xea\xf5" +
+	"\x07\xde\xd1\xcb\x83\xfe/\x00\x00\xff\xff<C\x89\xb1"
 
 func init() {
 	schemas.Register(schema_904d4f3f728c7f04,

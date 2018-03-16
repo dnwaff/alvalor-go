@@ -24,7 +24,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func handleConnecting(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, pending pendingManager, peers peerManager, rep reputationManager, dialer dialWrapper, address string) {
+func handleConnecting(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, pending pendingManager, peers peerManager, rep reputationManager, book addressManager, dialer dialWrapper, events eventManager, address string) {
 	defer wg.Done()
 
 	// extract the variables from the config we are interested in
@@ -35,8 +35,8 @@ func handleConnecting(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, pendi
 
 	// configure the component logger and set start/stop messages
 	log = log.With().Str("component", "connector").Str("address", address).Logger()
-	log.Info().Msg("connecting routine started")
-	defer log.Info().Msg("connecting routine stopped")
+	log.Debug().Msg("connecting routine started")
+	defer log.Debug().Msg("connecting routine stopped")
 
 	// claim a free connection slot and set the release
 	err := pending.Claim(address)
@@ -61,34 +61,34 @@ func handleConnecting(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, pendi
 	if err != nil {
 		log.Error().Err(err).Msg("could not write syn packet")
 		conn.Close()
-		rep.Error(address)
+		rep.Failure(address)
 		return
 	}
 	_, err = conn.Read(ack)
 	if err != nil {
 		log.Error().Err(err).Msg("could not read ack packet")
 		conn.Close()
-		rep.Error(address)
+		rep.Failure(address)
 		return
 	}
 	networkIn := ack[:len(network)]
 	if !bytes.Equal(networkIn, network) {
 		log.Error().Bytes("network", network).Bytes("network_in", networkIn).Msg("network mismatch")
 		conn.Close()
-		rep.Invalid(address)
+		book.Block(address)
 		return
 	}
 	nonceIn := ack[len(network):]
 	if bytes.Equal(nonceIn, nonce) {
-		log.Error().Bytes("nonce", nonce).Msg("identical nonce")
+		log.Error().Hex("nonce", nonce).Msg("identical nonce")
 		conn.Close()
-		rep.Invalid(address)
+		book.Block(address)
 		return
 	}
 	if peers.Known(nonceIn) {
-		log.Error().Bytes("nonce", nonce).Msg("nonce already known")
+		log.Error().Hex("nonce", nonce).Msg("nonce already known")
 		conn.Close()
-		rep.Invalid(address)
+		book.Block(address)
 		return
 	}
 
@@ -100,5 +100,12 @@ func handleConnecting(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, pendi
 		return
 	}
 
+	log.Info().Msg("outgoing connection established")
+
 	rep.Success(address)
+
+	err = events.Connected(address)
+	if err != nil {
+		log.Error().Err(err).Msg("could not submit connected event")
+	}
 }

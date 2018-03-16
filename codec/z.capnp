@@ -24,6 +24,10 @@ using Pong = import "pong.capnp".Pong;
 using Discover = import "discover.capnp".Discover;
 using Peers = import "peers.capnp".Peers;
 using Transaction = import "transaction.capnp".Transaction;
+using Mempool = import "mempool.capnp".Mempool;
+using Inventory = import "inventory.capnp".Inventory;
+using Request = import "request.capnp".Request;
+using Batch = import "batch.capnp".Batch;
 
 @0x904d4f3f728c7f04;
 struct Z {
@@ -33,7 +37,9 @@ struct Z {
 		discover @2: Discover;
 		peers @3: Peers;
 		transaction @4: Transaction;
-		# header @5: Header;
-		# block @6: Block;
+		mempool @5: Mempool;
+		inventory @6: Inventory;
+		request @7: Request;
+		batch @8: Batch;
 	}
 }

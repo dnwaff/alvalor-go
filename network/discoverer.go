@@ -28,24 +28,23 @@ func handleDiscovering(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, peer
 
 	// configure logger and add start/stop messages
 	log = log.With().Str("component", "discoverer").Logger()
-	log.Info().Msg("discovering routine started")
-	defer log.Info().Msg("discovering routine stopped")
+	log.Debug().Msg("discovering routine started")
+	defer log.Debug().Msg("discovering routine stopped")
 
 	// send a discover message to each peer
 	addresses := peers.Addresses()
 	if len(addresses) == 0 {
-		log.Info().Msg("could not launch discovery, no peers")
+		log.Debug().Msg("could not launch discovery, no peers")
 		return
 	}
 
 	// get output for each peer and send the discover message
 	msg := &Discover{}
 	for _, address := range addresses {
-		output, err := peers.Output(address)
+		err := peers.Send(address, msg)
 		if err != nil {
 			log.Error().Err(err).Str("address", address).Msg("could not send discovery message")
 			continue
 		}
-		output <- msg
 	}
 }

@@ -20,42 +20,63 @@ package network
 import (
 	"io"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
-func handleSending(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, peers peerManager, rep reputationManager, address string, output <-chan interface{}, w io.Writer) {
+func handleSending(log zerolog.Logger, wg *sync.WaitGroup, cfg *Config, rep reputationManager, events eventManager, address string, output <-chan interface{}, w io.Writer) {
 	defer wg.Done()
 
 	// extract configuration parameters
 	var (
-		codec = cfg.codec
+		codec    = cfg.codec
+		interval = cfg.interval
 	)
 
 	// configure logger and add stop/start messages
 	log = log.With().Str("component", "sender").Str("address", address).Logger()
-	log.Info().Msg("sending routine started")
-	defer log.Info().Msg("sending routine stopped")
+	log.Debug().Msg("sending routine started")
+	defer log.Debug().Msg("sending routine stopped")
 
-	// read messages from output channel and write to connection
-	for msg := range output {
+	// we keep reading messages from the output channel and writing them to the network connection
+	var msg interface{}
+	var ok bool
+Loop:
+	for {
+
+		// if we don't have a message for a while, we send a heartbeat ping
+		select {
+		case msg, ok = <-output:
+			if !ok {
+				break Loop
+			}
+		case <-time.After(interval):
+			msg = &Ping{}
+		}
+
+		// send the message, break the loop on closed connection, register other failures
 		err := codec.Encode(w, msg)
 		if errors.Cause(err) == io.EOF || isClosedErr(err) {
-			log.Info().Msg("network connection closed")
+			log.Debug().Msg("network connection closed")
 			break
 		}
 		if err != nil {
 			log.Error().Err(err).Msg("could not write message")
-			rep.Error(address)
-			err = peers.Drop(address)
-			if err != nil {
-				log.Error().Err(err).Msg("could not drop peer")
-			}
+			rep.Failure(address)
 			continue
 		}
 	}
-	for _ = range output {
-		// draining the channel
+
+	// drain the channel in case we broke on closed connection & wait until cascade arrives
+	for range output {
+	}
+
+	log.Info().Msg("connection dropped")
+
+	err := events.Disconnected(address)
+	if err != nil {
+		log.Error().Err(err).Msg("could not submit disconnected event")
 	}
 }
